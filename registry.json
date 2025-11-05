@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2025-01-15T00:00:00.000Z",
+  "lastUpdated": "2025-11-05T13:10:15.162Z",
   "cdn": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@latest",
   "plugins": [
     {
@@ -14,7 +14,12 @@
       },
       "description": "Visual behavior tree editor with real-time execution visualization and debugging capabilities",
       "category": "Tool",
-      "tags": ["behavior-tree", "visual-editor", "official", "ai"],
+      "tags": [
+        "behavior-tree",
+        "visual-editor",
+        "official",
+        "ai"
+      ],
       "icon": "GitBranch",
       "repository": {
         "type": "github",
