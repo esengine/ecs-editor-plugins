@@ -13,11 +13,12 @@ function generateRegistry() {
 
   const registry = {
     version: '1.0.0',
-    lastUpdated: new Date().toISOString(),
+    generatedAt: new Date().toISOString(),
     cdn: 'https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@latest',
     plugins: []
   };
 
+  // 遍历 official 和 community 目录
   for (const category of ['official', 'community']) {
     const categoryDir = path.join(pluginsDir, category);
     if (!fs.existsSync(categoryDir)) {
@@ -25,27 +26,54 @@ function generateRegistry() {
       continue;
     }
 
-    const files = fs.readdirSync(categoryDir).filter(f => f.endsWith('.json'));
+    // 获取该分类下的所有插件目录
+    const pluginDirs = fs.readdirSync(categoryDir).filter(item => {
+      const itemPath = path.join(categoryDir, item);
+      return fs.statSync(itemPath).isDirectory();
+    });
 
-    console.log(`Found ${files.length} plugins in ${category}/`);
+    console.log(`Found ${pluginDirs.length} plugins in ${category}/`);
 
-    for (const file of files) {
-      const manifestPath = path.join(categoryDir, file);
+    for (const pluginId of pluginDirs) {
+      const manifestPath = path.join(categoryDir, pluginId, 'manifest.json');
+
+      if (!fs.existsSync(manifestPath)) {
+        console.log(`  ⚠️  Skipping ${pluginId}: no manifest.json`);
+        continue;
+      }
+
       try {
         const content = fs.readFileSync(manifestPath, 'utf-8');
         const manifest = JSON.parse(content);
 
-        manifest.verified = category === 'official';
-        manifest.category_type = category;
+        // 添加插件信息到 registry
+        const pluginInfo = {
+          id: manifest.id,
+          name: manifest.name,
+          author: manifest.author,
+          description: manifest.description,
+          category: manifest.category,
+          tags: manifest.tags || [],
+          icon: manifest.icon,
+          repository: manifest.repository,
+          license: manifest.license,
+          homepage: manifest.homepage,
+          screenshots: manifest.screenshots || [],
+          latestVersion: manifest.latest,
+          versions: manifest.versions || [],
+          verified: category === 'official',
+          category_type: category
+        };
 
-        registry.plugins.push(manifest);
-        console.log(`  ✓ Added: ${manifest.name} (${manifest.version})`);
+        registry.plugins.push(pluginInfo);
+        console.log(`  ✓ Added: ${manifest.name} v${manifest.latest} (${manifest.versions.length} versions)`);
       } catch (error) {
-        console.error(`  ✗ Failed to process ${file}: ${error.message}`);
+        console.error(`  ✗ Failed to process ${pluginId}: ${error.message}`);
       }
     }
   }
 
+  // 排序：官方插件优先，然后按名称排序
   registry.plugins.sort((a, b) => {
     if (a.verified !== b.verified) return b.verified ? 1 : -1;
     return a.name.localeCompare(b.name);

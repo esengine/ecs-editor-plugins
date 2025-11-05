@@ -1,43 +1,116 @@
-name: Update Plugin Registry
+name: Update Registry and Build Plugins
 
 on:
   push:
     branches:
       - main
-    paths:
-      - 'plugins/**/*.json'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  update-registry:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install dependencies
         run: npm install
 
+      - name: Detect new plugin versions
+        id: detect-versions
+        run: |
+          # 检测所有需要打包的版本
+          NEW_VERSIONS=""
+
+          for CATEGORY in official community; do
+            if [ ! -d "plugins/$CATEGORY" ]; then
+              continue
+            fi
+
+            for PLUGIN_DIR in plugins/$CATEGORY/*/; do
+              if [ ! -f "$PLUGIN_DIR/manifest.json" ]; then
+                continue
+              fi
+
+              PLUGIN_ID=$(basename "$PLUGIN_DIR")
+
+              # 从 manifest.json 读取所有版本
+              VERSIONS=$(node -e "
+                const fs = require('fs');
+                const manifest = JSON.parse(fs.readFileSync('$PLUGIN_DIR/manifest.json'));
+                manifest.versions.forEach(v => console.log(v.version));
+              ")
+
+              # 检查每个版本的 ZIP 是否存在
+              for VERSION in $VERSIONS; do
+                ZIP_FILE="$PLUGIN_DIR/versions/$VERSION.zip"
+                if [ ! -f "$ZIP_FILE" ]; then
+                  echo "📦 Need to build: $CATEGORY/$PLUGIN_ID v$VERSION"
+                  NEW_VERSIONS="$NEW_VERSIONS $CATEGORY/$PLUGIN_ID/$VERSION"
+                fi
+              done
+            done
+          done
+
+          echo "new_versions=$NEW_VERSIONS" >> $GITHUB_OUTPUT
+
+          if [ -z "$NEW_VERSIONS" ]; then
+            echo "✅ No new versions to build"
+          fi
+
+      - name: Build new plugin versions
+        if: steps.detect-versions.outputs.new_versions != ''
+        run: |
+          for ITEM in ${{ steps.detect-versions.outputs.new_versions }}; do
+            CATEGORY=$(echo $ITEM | cut -d/ -f1)
+            PLUGIN_ID=$(echo $ITEM | cut -d/ -f2)
+            VERSION=$(echo $ITEM | cut -d/ -f3)
+
+            echo "🔨 Building $CATEGORY/$PLUGIN_ID v$VERSION..."
+
+            npm run build -- $CATEGORY $PLUGIN_ID $VERSION
+
+            if [ $? -eq 0 ]; then
+              echo "✅ Successfully built $CATEGORY/$PLUGIN_ID v$VERSION"
+            else
+              echo "❌ Failed to build $CATEGORY/$PLUGIN_ID v$VERSION"
+              exit 1
+            fi
+          done
+
       - name: Generate registry
         run: npm run generate-registry
 
-      - name: Commit and push registry
+      - name: Commit built files
+        if: steps.detect-versions.outputs.new_versions != ''
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 添加所有新的 ZIP 文件和 registry.json
+          git add plugins/*/*/versions/*.zip
           git add registry.json
+
           if git diff --staged --quiet; then
-            echo "No changes to registry.json"
+            echo "No changes to commit"
           else
-            git commit -m "chore: update plugin registry [skip ci]"
+            git commit -m "chore: build and package new plugin versions
+
+Built versions:
+${{ steps.detect-versions.outputs.new_versions }}
+
+[skip ci]"
             git push
           fi
 
@@ -47,4 +120,5 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
           publish_branch: gh-pages
+          force_orphan: true
           exclude_assets: '.github,node_modules,scripts,PLUGIN_TEMPLATE'

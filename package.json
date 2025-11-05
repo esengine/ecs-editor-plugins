@@ -7,7 +7,8 @@
     "validate": "node scripts/validate-manifest.js",
     "check-security": "node scripts/check-repo-security.js",
     "generate-registry": "node scripts/generate-registry.js",
-    "validate:all": "npm run validate && npm run check-security && npm run generate-registry"
+    "validate:all": "npm run validate && npm run check-security && npm run generate-registry",
+    "build": "node scripts/build-and-package.js"
   },
   "repository": {
     "type": "git",

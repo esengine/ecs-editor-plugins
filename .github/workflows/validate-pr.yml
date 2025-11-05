@@ -3,7 +3,7 @@ name: Validate Plugin Submission
 on:
   pull_request:
     paths:
-      - 'plugins/**/*.json'
+      - 'plugins/**'
 
 jobs:
   validate:
@@ -12,11 +12,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install dependencies
         run: npm install
@@ -25,56 +27,99 @@ jobs:
         id: changed-files
         uses: tj-actions/changed-files@v41
         with:
-          files: 'plugins/**/*.json'
+          files: 'plugins/**/manifest.json'
 
-      - name: Validate manifest format
+      - name: Validate manifests
+        if: steps.changed-files.outputs.any_changed == 'true'
         run: |
           for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            echo "Validating $file..."
+            echo "========================================"
+            echo "Validating: $file"
+            echo "========================================"
+
+            # 验证 JSON 格式
+            echo "📝 Checking JSON format..."
             node scripts/validate-manifest.js "$file"
-          done
 
-      - name: Security check
-        run: |
-          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            echo "Security check for $file..."
+            # 安全检查
+            echo "🔒 Running security check..."
             node scripts/check-repo-security.js "$file"
+
+            echo "✅ $file passed validation"
+            echo ""
           done
 
-      - name: Check for duplicates
+      - name: Check version immutability
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          # 检查是否有版本对应的 ZIP 已存在（版本不可变）
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            PLUGIN_DIR=$(dirname "$file")
+
+            VERSIONS=$(node -e "
+              const fs = require('fs');
+              const manifest = JSON.parse(fs.readFileSync('$file'));
+              manifest.versions.forEach(v => console.log(v.version));
+            ")
+
+            for VERSION in $VERSIONS; do
+              ZIP_FILE="$PLUGIN_DIR/versions/$VERSION.zip"
+
+              # 检查主分支是否已有这个 ZIP
+              git fetch origin main:main 2>/dev/null || true
+
+              if git show main:"$ZIP_FILE" >/dev/null 2>&1; then
+                echo "❌ Error: Version $VERSION already exists for $(basename $PLUGIN_DIR)"
+                echo "   Versions are immutable. Please increment the version number."
+                exit 1
+              fi
+            done
+          done
+
+          echo "✅ All versions are new and valid"
+
+      - name: Check for duplicate plugin IDs
         run: |
           echo "Checking for duplicate plugin IDs..."
+
           node -e "
           const fs = require('fs');
           const path = require('path');
-          const ids = new Set();
-          const duplicates = [];
+          const ids = new Map();
 
           for (const category of ['official', 'community']) {
-            const dir = path.join('plugins', category);
-            if (!fs.existsSync(dir)) continue;
-            const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+            const categoryDir = path.join('plugins', category);
+            if (!fs.existsSync(categoryDir)) continue;
 
-            for (const file of files) {
-              const manifest = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8'));
+            const pluginDirs = fs.readdirSync(categoryDir).filter(item => {
+              const itemPath = path.join(categoryDir, item);
+              return fs.statSync(itemPath).isDirectory();
+            });
+
+            for (const pluginId of pluginDirs) {
+              const manifestPath = path.join(categoryDir, pluginId, 'manifest.json');
+              if (!fs.existsSync(manifestPath)) continue;
+
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+
               if (ids.has(manifest.id)) {
-                duplicates.push(manifest.id);
+                console.error(\`❌ Duplicate plugin ID found: \${manifest.id}\`);
+                console.error(\`   First seen in: \${ids.get(manifest.id)}\`);
+                console.error(\`   Duplicate in: \${category}/\${pluginId}\`);
+                process.exit(1);
               }
-              ids.add(manifest.id);
+
+              ids.set(manifest.id, \`\${category}/\${pluginId}\`);
             }
           }
 
-          if (duplicates.length > 0) {
-            console.error('Duplicate plugin IDs found:', duplicates);
-            process.exit(1);
-          }
-          console.log('No duplicate IDs found');
+          console.log('✅ No duplicate IDs found');
           "
 
       - name: Test registry generation
         run: npm run generate-registry
 
-      - name: Comment PR
+      - name: Comment PR with success
         if: success()
         uses: actions/github-script@v7
         with:
@@ -83,10 +128,26 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ **Automated checks passed!**\n\nYour plugin submission has passed all automated validation. A maintainer will review your plugin code shortly.\n\n**Next steps:**\n- Wait for manual code review\n- Address any feedback from maintainers\n- Once approved, your plugin will appear in the marketplace!'
+              body: `✅ **Automated validation passed!**
+
+Your plugin submission has passed all automated checks:
+- ✅ JSON format is valid
+- ✅ All required fields are present
+- ✅ Repository is accessible
+- ✅ Security scan passed
+- ✅ No duplicate plugin IDs
+- ✅ Version numbers are unique
+
+**Next steps:**
+1. A maintainer will review your plugin code
+2. Address any feedback from maintainers
+3. Once approved and merged, GitHub Actions will automatically build and package your plugin
+4. Your plugin will appear in the marketplace!
+
+Thank you for your contribution! 🎉`
             })
 
-      - name: Comment PR on failure
+      - name: Comment PR with failure
         if: failure()
         uses: actions/github-script@v7
         with:
@@ -95,5 +156,21 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '❌ **Automated checks failed**\n\nPlease review the logs above and fix the issues. Common problems:\n- Invalid JSON format\n- Missing required fields\n- Invalid repository URL\n- Distribution URL not accessible\n\nSee [Metadata Schema](https://github.com/esengine/ecs-editor-plugins/blob/main/docs/METADATA_SCHEMA.md) for details.'
+              body: `❌ **Automated validation failed**
+
+Please review the error logs above and fix the issues.
+
+**Common problems:**
+- Invalid JSON format in manifest.json
+- Missing required fields (id, name, version, repository, etc.)
+- Invalid repository URL or repository not accessible
+- Trying to overwrite an existing version (versions are immutable)
+- Duplicate plugin ID
+- Security concerns detected
+
+**Resources:**
+- [Contributing Guide](https://github.com/esengine/ecs-editor-plugins/blob/main/CONTRIBUTING.md)
+- [Plugin Template](https://github.com/esengine/ecs-editor-plugins/tree/main/PLUGIN_TEMPLATE)
+
+Feel free to ask for help in the comments if you need assistance!`
             })
