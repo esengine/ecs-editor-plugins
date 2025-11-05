@@ -1,0 +1,233 @@
+name: Auto Merge High Quality Plugins
+
+on:
+  pull_request:
+    types: [labeled]
+  schedule:
+    # 每小时检查一次待合并的 PR
+    - cron: '0 * * * *'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.label.name == 'ready-to-merge' || github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get ready-to-merge PRs
+        id: get-prs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let prs = [];
+
+            if (context.eventName === 'pull_request') {
+              // 如果是 PR 被打标签触发，只处理这个 PR
+              prs = [{
+                number: context.issue.number,
+                labels: context.payload.pull_request.labels
+              }];
+            } else {
+              // 定时任务：获取所有 ready-to-merge 的 PR
+              const { data: allPRs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open'
+              });
+
+              prs = allPRs
+                .filter(pr => pr.labels.some(label => label.name === 'ready-to-merge'))
+                .map(pr => ({
+                  number: pr.number,
+                  labels: pr.labels
+                }));
+            }
+
+            return prs;
+
+      - name: Process each PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prs = ${{ steps.get-prs.outputs.result }};
+
+            for (const prInfo of prs) {
+              const prNumber = prInfo.number;
+
+              console.log(`Processing PR #${prNumber}`);
+
+              try {
+                // 获取 PR 详情
+                const { data: pr } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber
+                });
+
+                // 检查 PR 状态
+                if (pr.state !== 'open') {
+                  console.log(`PR #${prNumber} is not open, skipping`);
+                  continue;
+                }
+
+                if (pr.draft) {
+                  console.log(`PR #${prNumber} is a draft, skipping`);
+                  continue;
+                }
+
+                // 检查是否已经被合并
+                if (pr.merged) {
+                  console.log(`PR #${prNumber} is already merged`);
+                  continue;
+                }
+
+                // 检查标签时间（冷却期：1小时）
+                const readyLabel = pr.labels.find(l => l.name === 'ready-to-merge');
+                if (!readyLabel) {
+                  console.log(`PR #${prNumber} doesn't have ready-to-merge label`);
+                  continue;
+                }
+
+                // 获取标签添加时间
+                const { data: events } = await github.rest.issues.listEvents({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber
+                });
+
+                const labelEvent = events
+                  .filter(e => e.event === 'labeled' && e.label?.name === 'ready-to-merge')
+                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+                if (labelEvent) {
+                  const labeledAt = new Date(labelEvent.created_at);
+                  const now = new Date();
+                  const hoursSinceLabeled = (now - labeledAt) / (1000 * 60 * 60);
+
+                  if (hoursSinceLabeled < 1) {
+                    const remainingMinutes = Math.ceil((1 - hoursSinceLabeled) * 60);
+                    console.log(`PR #${prNumber} is in cooling period (${remainingMinutes} minutes remaining)`);
+
+                    await github.rest.issues.createComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: prNumber,
+                      body: `⏳ **Cooling Period Active**\n\nThis PR will be automatically merged in approximately **${remainingMinutes} minutes** if all checks continue to pass.\n\n<sub>Auto-Merge Bot</sub>`
+                    });
+
+                    continue;
+                  }
+                }
+
+                // 检查 CI 状态
+                const { data: checks } = await github.rest.checks.listForRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: pr.head.sha
+                });
+
+                const allChecksPassed = checks.check_runs.every(
+                  check => check.status === 'completed' && check.conclusion === 'success'
+                );
+
+                if (!allChecksPassed) {
+                  console.log(`PR #${prNumber} has failing checks`);
+
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: prNumber,
+                    body: `❌ **Auto-Merge Failed**\n\nSome CI checks are not passing. Please fix the issues and the auto-merge will retry.\n\n<sub>Auto-Merge Bot</sub>`
+                  });
+
+                  // 移除 ready-to-merge 标签
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: prNumber,
+                    name: 'ready-to-merge'
+                  });
+
+                  continue;
+                }
+
+                // 检查是否有冲突
+                if (pr.mergeable === false) {
+                  console.log(`PR #${prNumber} has merge conflicts`);
+
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: prNumber,
+                    body: `❌ **Auto-Merge Failed**\n\nThis PR has merge conflicts. Please resolve the conflicts and the auto-merge will retry.\n\n<sub>Auto-Merge Bot</sub>`
+                  });
+
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: prNumber,
+                    name: 'ready-to-merge'
+                  });
+
+                  continue;
+                }
+
+                // 自动批准 PR（如果还未批准）
+                const { data: reviews } = await github.rest.pulls.listReviews({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber
+                });
+
+                const hasApproval = reviews.some(review => review.state === 'APPROVED');
+
+                if (!hasApproval) {
+                  await github.rest.pulls.createReview({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: prNumber,
+                    event: 'APPROVE',
+                    body: '✅ Automatic approval based on quality score and successful CI checks.'
+                  });
+                }
+
+                // 合并 PR
+                console.log(`Merging PR #${prNumber}`);
+
+                await github.rest.pulls.merge({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                  commit_title: `${pr.title} (#${prNumber})`,
+                  commit_message: 'Automatically merged by Auto-Merge Bot',
+                  merge_method: 'squash'
+                });
+
+                // 发送合并成功消息
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: `🎉 **Successfully Auto-Merged!**\n\nYour plugin has been automatically merged and is now available in the ECS Editor Plugin Registry.\n\nThank you for your contribution! 🚀\n\n<sub>Auto-Merge Bot</sub>`
+                });
+
+                console.log(`Successfully merged PR #${prNumber}`);
+
+              } catch (error) {
+                console.error(`Error processing PR #${prNumber}:`, error);
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: `❌ **Auto-Merge Error**\n\nAn error occurred during auto-merge:\n\`\`\`\n${error.message}\n\`\`\`\n\nA maintainer will review this manually.\n\n<sub>Auto-Merge Bot</sub>`
+                }).catch(e => console.error('Failed to post error comment:', e));
+              }
+            }

@@ -1,0 +1,282 @@
+name: Auto Review and Label
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'plugins/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  auto-review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: 'plugins/**/manifest.json'
+
+      - name: Auto review plugin submission
+        if: steps.changed-files.outputs.any_changed == 'true'
+        id: review
+        run: |
+          PLUGIN_CATEGORY=""
+          PLUGIN_NAME=""
+          PLUGIN_VERSION=""
+          IS_NEW_PLUGIN=false
+          IS_VERSION_UPDATE=false
+          HAS_REPO_URL=false
+          REPO_URL=""
+
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Analyzing: $file"
+
+            # 提取插件信息
+            PLUGIN_CATEGORY=$(echo $file | cut -d'/' -f2)
+            PLUGIN_NAME=$(echo $file | cut -d'/' -f3)
+
+            # 读取 manifest
+            PLUGIN_ID=$(node -e "console.log(require('./$file').id)")
+            PLUGIN_VERSION=$(node -e "console.log(require('./$file').latest)")
+            REPO_URL=$(node -e "console.log(require('./$file').repository.url)")
+
+            # 检查是否是新插件
+            git fetch origin main:main 2>/dev/null || true
+            if ! git show main:"$file" >/dev/null 2>&1; then
+              IS_NEW_PLUGIN=true
+              echo "✨ This is a NEW plugin submission"
+            else
+              IS_VERSION_UPDATE=true
+              echo "🔄 This is a VERSION UPDATE"
+            fi
+
+            # 检查仓库URL
+            if [ ! -z "$REPO_URL" ]; then
+              HAS_REPO_URL=true
+            fi
+          done
+
+          echo "category=$PLUGIN_CATEGORY" >> $GITHUB_OUTPUT
+          echo "name=$PLUGIN_NAME" >> $GITHUB_OUTPUT
+          echo "version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
+          echo "is_new=$IS_NEW_PLUGIN" >> $GITHUB_OUTPUT
+          echo "is_update=$IS_VERSION_UPDATE" >> $GITHUB_OUTPUT
+          echo "has_repo=$HAS_REPO_URL" >> $GITHUB_OUTPUT
+          echo "repo_url=$REPO_URL" >> $GITHUB_OUTPUT
+
+      - name: Add labels based on analysis
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const category = '${{ steps.review.outputs.category }}';
+            const isNew = '${{ steps.review.outputs.is_new }}' === 'true';
+            const isUpdate = '${{ steps.review.outputs.is_update }}' === 'true';
+
+            const labels = [];
+
+            // 分类标签
+            if (category === 'official') {
+              labels.push('official-plugin');
+            } else {
+              labels.push('community-plugin');
+            }
+
+            // 类型标签
+            if (isNew) {
+              labels.push('new-plugin');
+            } else if (isUpdate) {
+              labels.push('version-update');
+            }
+
+            // 添加标签
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: labels
+            });
+
+      - name: Validate plugin quality
+        if: steps.changed-files.outputs.any_changed == 'true'
+        id: quality
+        run: |
+          QUALITY_SCORE=0
+          ISSUES=()
+
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            # 检查必填字段完整性
+            REQUIRED_FIELDS="id name author description category repository license versions latest"
+            for field in $REQUIRED_FIELDS; do
+              VALUE=$(node -e "console.log(require('./$file').$field || '')")
+              if [ ! -z "$VALUE" ]; then
+                ((QUALITY_SCORE+=10))
+              else
+                ISSUES+=("Missing field: $field")
+              fi
+            done
+
+            # 检查描述长度
+            DESC_LENGTH=$(node -e "console.log((require('./$file').description || '').length)")
+            if [ "$DESC_LENGTH" -gt 50 ]; then
+              ((QUALITY_SCORE+=20))
+            else
+              ISSUES+=("Description too short (should be > 50 chars)")
+            fi
+
+            # 检查是否有截图
+            SCREENSHOTS_COUNT=$(node -e "console.log((require('./$file').screenshots || []).length)")
+            if [ "$SCREENSHOTS_COUNT" -gt 0 ]; then
+              ((QUALITY_SCORE+=15))
+            else
+              ISSUES+=("No screenshots provided")
+            fi
+
+            # 检查是否有主页
+            HOMEPAGE=$(node -e "console.log(require('./$file').homepage || '')")
+            if [ ! -z "$HOMEPAGE" ]; then
+              ((QUALITY_SCORE+=10))
+            fi
+
+            # 检查版本发布说明
+            RELEASE_NOTES=$(node -e "console.log((require('./$file').versions[0].changes || '').length)")
+            if [ "$RELEASE_NOTES" -gt 20 ]; then
+              ((QUALITY_SCORE+=15))
+            else
+              ISSUES+=("Release notes too short")
+            fi
+          done
+
+          echo "score=$QUALITY_SCORE" >> $GITHUB_OUTPUT
+          echo "issues=${ISSUES[@]}" >> $GITHUB_OUTPUT
+
+      - name: Add quality labels
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const score = parseInt('${{ steps.quality.outputs.score }}');
+
+            let qualityLabel = '';
+            if (score >= 80) {
+              qualityLabel = 'high-quality';
+            } else if (score >= 50) {
+              qualityLabel = 'medium-quality';
+            } else {
+              qualityLabel = 'needs-improvement';
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: [qualityLabel]
+            });
+
+      - name: Post review comment
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const score = parseInt('${{ steps.quality.outputs.score }}');
+            const category = '${{ steps.review.outputs.category }}';
+            const name = '${{ steps.review.outputs.name }}';
+            const version = '${{ steps.review.outputs.version }}';
+            const isNew = '${{ steps.review.outputs.is_new }}' === 'true';
+            const repoUrl = '${{ steps.review.outputs.repo_url }}';
+
+            let emoji = '✅';
+            let status = 'EXCELLENT';
+            let recommendation = 'This plugin submission looks great and is ready for merge!';
+
+            if (score < 50) {
+              emoji = '⚠️';
+              status = 'NEEDS IMPROVEMENT';
+              recommendation = 'Please address the quality issues before this can be merged.';
+            } else if (score < 80) {
+              emoji = '👍';
+              status = 'GOOD';
+              recommendation = 'This looks good, but consider improving the areas mentioned below.';
+            }
+
+            const issues = '${{ steps.quality.outputs.issues }}'.split(' ').filter(i => i);
+            const issuesList = issues.length > 0
+              ? '\n\n**Quality Issues:**\n' + issues.map(i => `- ${i}`).join('\n')
+              : '';
+
+            const body = `## ${emoji} Automated Review Report
+
+**Plugin:** ${name} v${version}
+**Category:** ${category}
+**Type:** ${isNew ? 'New Plugin' : 'Version Update'}
+**Quality Score:** ${score}/100
+**Status:** ${status}
+
+### Repository
+🔗 [${repoUrl}](${repoUrl})
+
+### Recommendation
+${recommendation}
+${issuesList}
+
+---
+
+### Next Steps
+
+${score >= 80 ? `
+✅ **Ready for Auto-Merge**
+This PR will be automatically merged after:
+- All CI checks pass
+- Wait for 1 hour (cooling period)
+
+You can also request manual review by maintainers if needed.
+` : `
+⚠️ **Manual Review Required**
+A maintainer will review this submission and provide feedback.
+
+To improve your submission:
+1. Add detailed description (> 50 characters)
+2. Include screenshots
+3. Add comprehensive release notes
+4. Ensure all required fields are filled
+`}
+
+**Thank you for your contribution!** 🎉
+
+<sub>Generated by Auto-Review Bot • [Report Issue](https://github.com/esengine/ecs-editor-plugins/issues)</sub>`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+            // 如果质量分数高，添加 ready-to-merge 标签
+            if (score >= 80) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['ready-to-merge']
+              });
+            }
