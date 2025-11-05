@@ -1,0 +1,27 @@
+{
+  "name": "ecs-editor-plugins",
+  "version": "1.0.0",
+  "description": "Official and community plugins registry for ECS Framework Editor",
+  "type": "module",
+  "scripts": {
+    "validate": "node scripts/validate-manifest.js",
+    "check-security": "node scripts/check-repo-security.js",
+    "generate-registry": "node scripts/generate-registry.js",
+    "validate:all": "npm run validate && npm run check-security && npm run generate-registry"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/esengine/ecs-editor-plugins.git"
+  },
+  "keywords": [
+    "ecs",
+    "editor",
+    "plugins",
+    "marketplace"
+  ],
+  "author": "esengine",
+  "license": "MIT",
+  "devDependencies": {
+    "ajv": "^8.12.0"
+  }
+}

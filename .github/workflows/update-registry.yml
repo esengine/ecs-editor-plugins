@@ -1,0 +1,50 @@
+name: Update Plugin Registry
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'plugins/**/*.json'
+
+permissions:
+  contents: write
+
+jobs:
+  update-registry:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate registry
+        run: npm run generate-registry
+
+      - name: Commit and push registry
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add registry.json
+          if git diff --staged --quiet; then
+            echo "No changes to registry.json"
+          else
+            git commit -m "chore: update plugin registry [skip ci]"
+            git push
+          fi
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          publish_branch: gh-pages
+          exclude_assets: '.github,node_modules,scripts,PLUGIN_TEMPLATE'

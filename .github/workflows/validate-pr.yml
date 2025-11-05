@@ -1,0 +1,99 @@
+name: Validate Plugin Submission
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/**/*.json'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: 'plugins/**/*.json'
+
+      - name: Validate manifest format
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Validating $file..."
+            node scripts/validate-manifest.js "$file"
+          done
+
+      - name: Security check
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Security check for $file..."
+            node scripts/check-repo-security.js "$file"
+          done
+
+      - name: Check for duplicates
+        run: |
+          echo "Checking for duplicate plugin IDs..."
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+          const ids = new Set();
+          const duplicates = [];
+
+          for (const category of ['official', 'community']) {
+            const dir = path.join('plugins', category);
+            if (!fs.existsSync(dir)) continue;
+            const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+
+            for (const file of files) {
+              const manifest = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf-8'));
+              if (ids.has(manifest.id)) {
+                duplicates.push(manifest.id);
+              }
+              ids.add(manifest.id);
+            }
+          }
+
+          if (duplicates.length > 0) {
+            console.error('Duplicate plugin IDs found:', duplicates);
+            process.exit(1);
+          }
+          console.log('No duplicate IDs found');
+          "
+
+      - name: Test registry generation
+        run: npm run generate-registry
+
+      - name: Comment PR
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **Automated checks passed!**\n\nYour plugin submission has passed all automated validation. A maintainer will review your plugin code shortly.\n\n**Next steps:**\n- Wait for manual code review\n- Address any feedback from maintainers\n- Once approved, your plugin will appear in the marketplace!'
+            })
+
+      - name: Comment PR on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ **Automated checks failed**\n\nPlease review the logs above and fix the issues. Common problems:\n- Invalid JSON format\n- Missing required fields\n- Invalid repository URL\n- Distribution URL not accessible\n\nSee [Metadata Schema](https://github.com/esengine/ecs-editor-plugins/blob/main/docs/METADATA_SCHEMA.md) for details.'
+            })

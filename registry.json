@@ -1,0 +1,38 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-15T00:00:00.000Z",
+  "cdn": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@latest",
+  "plugins": [
+    {
+      "id": "behavior-tree-editor",
+      "name": "Behavior Tree Editor",
+      "displayName": "Behavior Tree Editor",
+      "version": "1.0.0",
+      "author": {
+        "name": "ESEngine Team",
+        "github": "esengine"
+      },
+      "description": "Visual behavior tree editor with real-time execution visualization and debugging capabilities",
+      "category": "Tool",
+      "tags": ["behavior-tree", "visual-editor", "official", "ai"],
+      "icon": "GitBranch",
+      "repository": {
+        "type": "github",
+        "url": "https://github.com/esengine/ecs-framework"
+      },
+      "distribution": {
+        "type": "cdn",
+        "url": "https://cdn.jsdelivr.net/gh/esengine/ecs-framework@latest/packages/behavior-tree-editor/dist/index.js"
+      },
+      "requirements": {
+        "ecs-version": ">=2.0.0",
+        "editor-version": ">=1.0.0"
+      },
+      "license": "MIT",
+      "homepage": "https://github.com/esengine/ecs-framework/tree/main/packages/behavior-tree-editor",
+      "screenshots": [],
+      "verified": true,
+      "category_type": "official"
+    }
+  ]
+}

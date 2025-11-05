@@ -1,0 +1,28 @@
+{
+  "id": "my-plugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "author": {
+    "name": "Your Name",
+    "github": "yourusername",
+    "email": "your.email@example.com"
+  },
+  "description": "An awesome plugin for ECS Framework Editor",
+  "category": "Tool",
+  "tags": ["utility", "tool"],
+  "icon": "Package",
+  "repository": {
+    "type": "github",
+    "url": "https://github.com/yourusername/my-ecs-plugin"
+  },
+  "distribution": {
+    "type": "cdn",
+    "url": "https://cdn.jsdelivr.net/gh/yourusername/my-ecs-plugin@1.0.0/dist/index.js"
+  },
+  "requirements": {
+    "ecs-version": ">=2.0.0",
+    "editor-version": ">=1.0.0"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/yourusername/my-ecs-plugin"
+}
