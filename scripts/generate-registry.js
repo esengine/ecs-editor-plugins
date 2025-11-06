@@ -14,9 +14,32 @@ function generateRegistry() {
   const registry = {
     version: '1.0.0',
     generatedAt: new Date().toISOString(),
-    cdn: 'https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@latest',
+    cdn: 'https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages',
     plugins: []
   };
+
+  // 递归查找所有 manifest.json 文件
+  function findManifests(dir, category) {
+    const manifests = [];
+
+    function walk(currentDir) {
+      const items = fs.readdirSync(currentDir);
+
+      for (const item of items) {
+        const itemPath = path.join(currentDir, item);
+        const stat = fs.statSync(itemPath);
+
+        if (stat.isDirectory()) {
+          walk(itemPath);
+        } else if (item === 'manifest.json') {
+          manifests.push(itemPath);
+        }
+      }
+    }
+
+    walk(dir);
+    return manifests;
+  }
 
   // 遍历 official 和 community 目录
   for (const category of ['official', 'community']) {
@@ -26,21 +49,10 @@ function generateRegistry() {
       continue;
     }
 
-    // 获取该分类下的所有插件目录
-    const pluginDirs = fs.readdirSync(categoryDir).filter(item => {
-      const itemPath = path.join(categoryDir, item);
-      return fs.statSync(itemPath).isDirectory();
-    });
+    const manifestPaths = findManifests(categoryDir, category);
+    console.log(`Found ${manifestPaths.length} plugins in ${category}/`);
 
-    console.log(`Found ${pluginDirs.length} plugins in ${category}/`);
-
-    for (const pluginId of pluginDirs) {
-      const manifestPath = path.join(categoryDir, pluginId, 'manifest.json');
-
-      if (!fs.existsSync(manifestPath)) {
-        console.log(`  ⚠️  Skipping ${pluginId}: no manifest.json`);
-        continue;
-      }
+    for (const manifestPath of manifestPaths) {
 
       try {
         const content = fs.readFileSync(manifestPath, 'utf-8');
