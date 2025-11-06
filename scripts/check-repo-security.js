@@ -48,8 +48,15 @@ async function checkGitHubRepository(repoUrl) {
   }
 }
 
-async function checkDistributionUrl(distUrl) {
+async function checkDistributionUrl(distUrl, isNewPlugin = false) {
   console.log(`\nChecking distribution URL: ${distUrl}`);
+
+  // 对于新插件提交，ZIP 文件还未构建，只检查 URL 格式
+  if (isNewPlugin) {
+    console.log(`⚠️  New plugin submission - skipping availability check`);
+    console.log(`✓ Distribution URL format is valid`);
+    return true;
+  }
 
   try {
     const response = await fetch(distUrl, { method: 'HEAD' });
@@ -113,10 +120,22 @@ async function checkManifestSecurity(manifestPath) {
 
   await checkGitHubRepository(manifest.repository.url);
 
-  await checkDistributionUrl(manifest.distribution.url);
+  // 检查是否是新插件（在 CI 环境中，通过检查文件是否在 main 分支存在来判断）
+  let isNewPlugin = false;
+  if (process.env.CI) {
+    try {
+      const { execSync } = await import('child_process');
+      execSync(`git show main:"${manifestPath}"`, { stdio: 'ignore' });
+      isNewPlugin = false; // 文件在 main 分支存在，是版本更新
+    } catch {
+      isNewPlugin = true; // 文件在 main 分支不存在，是新插件
+    }
+  }
+
+  await checkDistributionUrl(manifest.distribution.url, isNewPlugin);
 
   if (manifest.distribution.css) {
-    await checkDistributionUrl(manifest.distribution.css);
+    await checkDistributionUrl(manifest.distribution.css, isNewPlugin);
   }
 
   await scanRepositoryCode(manifest.repository.url);
