@@ -182,7 +182,7 @@ jobs:
                   continue;
                 }
 
-                // 自动批准 PR（如果还未批准）
+                // 检查是否有人工批准
                 const { data: reviews } = await github.rest.pulls.listReviews({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -192,13 +192,16 @@ jobs:
                 const hasApproval = reviews.some(review => review.state === 'APPROVED');
 
                 if (!hasApproval) {
-                  await github.rest.pulls.createReview({
+                  console.log(`PR #${prNumber} has no approval yet`);
+
+                  await github.rest.issues.createComment({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    pull_number: prNumber,
-                    event: 'APPROVE',
-                    body: '✅ Automatic approval based on quality score and successful CI checks.'
+                    issue_number: prNumber,
+                    body: `⏳ **Awaiting Manual Approval**\n\nThis PR has passed all automated checks and is ready for merge, but requires at least one manual approval from a maintainer.\n\nOnce approved, it will be automatically merged at the next scheduled check.\n\n<sub>Auto-Merge Bot</sub>`
                   });
+
+                  continue;
                 }
 
                 // 合并 PR

@@ -46,6 +46,17 @@ function generateRegistry() {
         const content = fs.readFileSync(manifestPath, 'utf-8');
         const manifest = JSON.parse(content);
 
+        // 构建版本信息
+        const versionInfo = {
+          version: manifest.version,
+          releaseDate: new Date().toISOString(),
+          changes: manifest.description || 'No release notes',
+          zipUrl: manifest.distribution?.url || '',
+          requirements: manifest.requirements || {
+            'ecs-version': '>=1.0.0'
+          }
+        };
+
         // 添加插件信息到 registry
         const pluginInfo = {
           id: manifest.id,
@@ -59,14 +70,14 @@ function generateRegistry() {
           license: manifest.license,
           homepage: manifest.homepage,
           screenshots: manifest.screenshots || [],
-          latestVersion: manifest.latest,
-          versions: manifest.versions || [],
+          latestVersion: manifest.version,
+          versions: [versionInfo],
           verified: category === 'official',
           category_type: category
         };
 
         registry.plugins.push(pluginInfo);
-        console.log(`  ✓ Added: ${manifest.name} v${manifest.latest} (${manifest.versions.length} versions)`);
+        console.log(`  ✓ Added: ${manifest.name} v${manifest.version}`);
       } catch (error) {
         console.error(`  ✗ Failed to process ${pluginId}: ${error.message}`);
       }
