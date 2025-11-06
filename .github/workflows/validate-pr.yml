@@ -61,24 +61,22 @@ jobs:
           for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
             PLUGIN_DIR=$(dirname "$file")
 
-            VERSIONS=$(node -e "
+            VERSION=$(node -e "
               const fs = require('fs');
               const manifest = JSON.parse(fs.readFileSync('$file'));
-              manifest.versions.forEach(v => console.log(v.version));
+              console.log(manifest.version);
             ")
 
-            for VERSION in $VERSIONS; do
-              ZIP_FILE="$PLUGIN_DIR/versions/$VERSION.zip"
+            ZIP_FILE="$PLUGIN_DIR/versions/$VERSION.zip"
 
-              # 检查主分支是否已有这个 ZIP
-              git fetch origin main:main 2>/dev/null || true
+            # 检查主分支是否已有这个 ZIP
+            git fetch origin main:main 2>/dev/null || true
 
-              if git show main:"$ZIP_FILE" >/dev/null 2>&1; then
-                echo "❌ Error: Version $VERSION already exists for $(basename $PLUGIN_DIR)"
-                echo "   Versions are immutable. Please increment the version number."
-                exit 1
-              fi
-            done
+            if git show main:"$ZIP_FILE" >/dev/null 2>&1; then
+              echo "❌ Error: Version $VERSION already exists for $(basename $PLUGIN_DIR)"
+              echo "   Versions are immutable. Please increment the version number."
+              exit 1
+            fi
           done
 
           echo "✅ All versions are new and valid"
