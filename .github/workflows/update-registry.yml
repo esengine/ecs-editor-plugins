@@ -105,12 +105,8 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore: build and package new plugin versions
-
-Built versions:
-${{ steps.detect-versions.outputs.new_versions }}
-
-[skip ci]"
+            VERSIONS="${{ steps.detect-versions.outputs.new_versions }}"
+            git commit -m "chore: build and package new plugin versions" -m "Built versions:" -m "$VERSIONS" -m "[skip ci]"
             git push
           fi
 
