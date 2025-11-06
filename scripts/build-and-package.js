@@ -11,10 +11,13 @@
  *   node scripts/build-and-package.js community my-plugin 1.0.0
  */
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const https = require('https');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const CATEGORY = process.argv[2]; // official or community
 const PLUGIN_ID = process.argv[3];
@@ -43,9 +46,8 @@ if (!fs.existsSync(MANIFEST_PATH)) {
 const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
 
 // 2. 验证版本号
-const versionInfo = manifest.versions.find(v => v.version === VERSION);
-if (!versionInfo) {
-    console.error(`❌ Version ${VERSION} not found in manifest.json`);
+if (manifest.version !== VERSION) {
+    console.error(`❌ Version mismatch: manifest has ${manifest.version}, building ${VERSION}`);
     process.exit(1);
 }
 
@@ -84,15 +86,23 @@ try {
 
     if (CATEGORY === 'official') {
         // 官方插件：从 packages/<plugin-id> 构建
-        buildDir = path.join(cloneDir, 'packages', PLUGIN_ID);
+        // 尝试多种可能的目录名
+        const possibleDirs = [
+            path.join(cloneDir, 'packages', PLUGIN_ID),
+            path.join(cloneDir, 'packages', PLUGIN_ID.replace('esengine-', '')),
+            path.join(cloneDir, 'packages', `@esengine/${PLUGIN_ID.replace('esengine-', '')}`)
+        ];
+
+        buildDir = possibleDirs.find(dir => fs.existsSync(dir));
+
+        if (!buildDir) {
+            console.error(`❌ Build directory not found. Tried:`);
+            possibleDirs.forEach(dir => console.error(`   - ${dir}`));
+            process.exit(1);
+        }
     } else {
         // 社区插件：从根目录构建
         buildDir = cloneDir;
-    }
-
-    if (!fs.existsSync(buildDir)) {
-        console.error(`❌ Build directory not found: ${buildDir}`);
-        process.exit(1);
     }
 
     console.log(`📂 Build directory: ${buildDir}\n`);
@@ -121,9 +131,19 @@ try {
     // 11. 打包成 ZIP
     console.log('\n📦 Creating ZIP archive...');
 
-    // 使用 PowerShell 创建 ZIP（Windows）
-    const zipCommand = `powershell -Command "Compress-Archive -Path '${distDir}\\*' -DestinationPath '${ZIP_FILE}' -Force"`;
-    execSync(zipCommand, { stdio: 'inherit' });
+    // 使用跨平台的 zip 命令
+    // Linux: 使用 zip 命令
+    // Windows: 需要安装 zip 或使用其他方法
+    const platform = process.platform;
+
+    if (platform === 'win32') {
+        // Windows: 使用 PowerShell
+        const zipCommand = `powershell -Command "Compress-Archive -Path '${distDir}\\*' -DestinationPath '${ZIP_FILE}' -Force"`;
+        execSync(zipCommand, { stdio: 'inherit' });
+    } else {
+        // Linux/Mac: 使用 zip 命令
+        execSync(`cd "${distDir}" && zip -r "${ZIP_FILE}" .`, { stdio: 'inherit' });
+    }
 
     // 12. 验证 ZIP 文件
     if (!fs.existsSync(ZIP_FILE)) {
