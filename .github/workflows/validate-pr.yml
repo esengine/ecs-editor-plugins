@@ -124,27 +124,31 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const body = [
+              '✅ **Automated validation passed!**',
+              '',
+              'Your plugin submission has passed all automated checks:',
+              '- ✅ JSON format is valid',
+              '- ✅ All required fields are present',
+              '- ✅ Repository is accessible',
+              '- ✅ Security scan passed',
+              '- ✅ No duplicate plugin IDs',
+              '- ✅ Version numbers are unique',
+              '',
+              '**Next steps:**',
+              '1. A maintainer will review your plugin code',
+              '2. Address any feedback from maintainers',
+              '3. Once approved and merged, GitHub Actions will automatically build and package your plugin',
+              '4. Your plugin will appear in the marketplace!',
+              '',
+              'Thank you for your contribution! 🎉'
+            ].join('\n');
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `✅ **Automated validation passed!**
-
-Your plugin submission has passed all automated checks:
-- ✅ JSON format is valid
-- ✅ All required fields are present
-- ✅ Repository is accessible
-- ✅ Security scan passed
-- ✅ No duplicate plugin IDs
-- ✅ Version numbers are unique
-
-**Next steps:**
-1. A maintainer will review your plugin code
-2. Address any feedback from maintainers
-3. Once approved and merged, GitHub Actions will automatically build and package your plugin
-4. Your plugin will appear in the marketplace!
-
-Thank you for your contribution! 🎉`
+              body: body
             })
 
       - name: Comment PR with failure
@@ -152,25 +156,29 @@ Thank you for your contribution! 🎉`
         uses: actions/github-script@v7
         with:
           script: |
+            const body = [
+              '❌ **Automated validation failed**',
+              '',
+              'Please review the error logs above and fix the issues.',
+              '',
+              '**Common problems:**',
+              '- Invalid JSON format in manifest.json',
+              '- Missing required fields (id, name, version, repository, etc.)',
+              '- Invalid repository URL or repository not accessible',
+              '- Trying to overwrite an existing version (versions are immutable)',
+              '- Duplicate plugin ID',
+              '- Security concerns detected',
+              '',
+              '**Resources:**',
+              '- [Contributing Guide](https://github.com/esengine/ecs-editor-plugins/blob/main/CONTRIBUTING.md)',
+              '- [Plugin Template](https://github.com/esengine/ecs-editor-plugins/tree/main/PLUGIN_TEMPLATE)',
+              '',
+              'Feel free to ask for help in the comments if you need assistance!'
+            ].join('\n');
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `❌ **Automated validation failed**
-
-Please review the error logs above and fix the issues.
-
-**Common problems:**
-- Invalid JSON format in manifest.json
-- Missing required fields (id, name, version, repository, etc.)
-- Invalid repository URL or repository not accessible
-- Trying to overwrite an existing version (versions are immutable)
-- Duplicate plugin ID
-- Security concerns detected
-
-**Resources:**
-- [Contributing Guide](https://github.com/esengine/ecs-editor-plugins/blob/main/CONTRIBUTING.md)
-- [Plugin Template](https://github.com/esengine/ecs-editor-plugins/tree/main/PLUGIN_TEMPLATE)
-
-Feel free to ask for help in the comments if you need assistance!`
+              body: body
             })
