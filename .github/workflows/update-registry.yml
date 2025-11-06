@@ -45,21 +45,19 @@ jobs:
 
               PLUGIN_ID=$(basename "$PLUGIN_DIR")
 
-              # 从 manifest.json 读取所有版本
-              VERSIONS=$(node -e "
+              # 从 manifest.json 读取版本
+              VERSION=$(node -e "
                 const fs = require('fs');
                 const manifest = JSON.parse(fs.readFileSync('$PLUGIN_DIR/manifest.json'));
-                manifest.versions.forEach(v => console.log(v.version));
+                console.log(manifest.version);
               ")
 
-              # 检查每个版本的 ZIP 是否存在
-              for VERSION in $VERSIONS; do
-                ZIP_FILE="$PLUGIN_DIR/versions/$VERSION.zip"
-                if [ ! -f "$ZIP_FILE" ]; then
-                  echo "📦 Need to build: $CATEGORY/$PLUGIN_ID v$VERSION"
-                  NEW_VERSIONS="$NEW_VERSIONS $CATEGORY/$PLUGIN_ID/$VERSION"
-                fi
-              done
+              # 检查版本的 ZIP 是否存在
+              ZIP_FILE="$PLUGIN_DIR/versions/$VERSION.zip"
+              if [ ! -f "$ZIP_FILE" ]; then
+                echo "📦 Need to build: $CATEGORY/$PLUGIN_ID v$VERSION"
+                NEW_VERSIONS="$NEW_VERSIONS $CATEGORY/$PLUGIN_ID/$VERSION"
+              fi
             done
           done
 
