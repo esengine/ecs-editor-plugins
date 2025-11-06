@@ -74,9 +74,13 @@ try {
 
     // 6. 克隆仓库
     const repoUrl = manifest.repository.url;
+    const repoBranch = manifest.repository.branch || 'master';
     const cloneDir = path.join(TEMP_DIR, 'repo');
 
-    execSync(`git clone --depth 1 ${repoUrl} "${cloneDir}"`, {
+    console.log(`   Repository: ${repoUrl}`);
+    console.log(`   Branch: ${repoBranch}`);
+
+    execSync(`git clone --depth 1 --branch ${repoBranch} ${repoUrl} "${cloneDir}"`, {
         stdio: 'inherit',
         cwd: TEMP_DIR
     });
