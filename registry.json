@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2025-11-06T08:01:16.582Z",
+  "generatedAt": "2025-11-06T10:06:26.991Z",
   "cdn": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages",
   "plugins": [
     {
@@ -25,7 +25,7 @@
       "versions": [
         {
           "version": "1.0.0",
-          "releaseDate": "2025-11-06T08:01:16.584Z",
+          "releaseDate": "2025-11-06T10:06:26.992Z",
           "changes": "Behavior Tree Editor Plugin for ECS Framework",
           "zipUrl": "https://raw.githubusercontent.com/esengine/ecs-editor-plugins/gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.0.zip",
           "requirements": {
