@@ -58,30 +58,16 @@ function generateRegistry() {
         const content = fs.readFileSync(manifestPath, 'utf-8');
         const manifest = JSON.parse(content);
 
-        let versions = [];
-        let latestVersion = '';
-
-        // 支持新旧两种 manifest 结构
-        if (Array.isArray(manifest.versions) && manifest.versions.length > 0) {
-          // 新结构：使用 versions 数组
-          versions = manifest.versions;
-          latestVersion = manifest.latestVersion || manifest.versions[0].version;
-        } else if (manifest.version) {
-          // 旧结构：单个版本
-          const versionInfo = {
-            version: manifest.version,
-            releaseDate: new Date().toISOString(),
-            changes: manifest.description || 'No release notes',
-            zipUrl: manifest.distribution?.url || '',
-            requirements: manifest.requirements || {
-              'ecs-version': '>=1.0.0'
-            }
-          };
-          versions = [versionInfo];
-          latestVersion = manifest.version;
-        } else {
-          throw new Error('No version information found in manifest');
+        // 验证新结构
+        if (!manifest.latestVersion) {
+          throw new Error('Missing required field: latestVersion');
         }
+        if (!Array.isArray(manifest.versions) || manifest.versions.length === 0) {
+          throw new Error('Missing or empty versions array');
+        }
+
+        const versions = manifest.versions;
+        const latestVersion = manifest.latestVersion;
 
         // 添加插件信息到 registry
         const pluginInfo = {

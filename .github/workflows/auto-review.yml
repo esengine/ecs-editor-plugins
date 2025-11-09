@@ -56,7 +56,7 @@ jobs:
 
             # 读取 manifest
             PLUGIN_ID=$(node -e "console.log(require('./$file').id)")
-            PLUGIN_VERSION=$(node -e "console.log(require('./$file').version)")
+            PLUGIN_VERSION=$(node -e "console.log(require('./$file').latestVersion)")
             REPO_URL=$(node -e "console.log(require('./$file').repository.url)")
 
             # 检查是否是新插件
@@ -124,8 +124,8 @@ jobs:
           ISSUES=()
 
           for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            # 检查必填字段完整性
-            REQUIRED_FIELDS="id name author description category repository license versions latest"
+            # 检查必填字段完整性（新结构）
+            REQUIRED_FIELDS="id name author description category repository license latestVersion versions"
             for field in $REQUIRED_FIELDS; do
               VALUE=$(node -e "console.log(require('./$file').$field || '')")
               if [ ! -z "$VALUE" ]; then

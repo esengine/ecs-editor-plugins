@@ -6,11 +6,26 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const SCHEMA = {
-  required: ['id', 'name', 'version', 'author', 'description', 'category', 'repository', 'distribution', 'requirements', 'license'],
+  required: ['id', 'name', 'author', 'description', 'category', 'repository', 'requirements', 'license', 'latestVersion', 'versions'],
   properties: {
     id: { type: 'string', pattern: /^[a-z0-9-]+$/ },
     name: { type: 'string', minLength: 1, maxLength: 100 },
-    version: { type: 'string', pattern: /^\d+\.\d+\.\d+$/ },
+    latestVersion: { type: 'string', pattern: /^\d+\.\d+\.\d+$/ },
+    versions: {
+      type: 'array',
+      minLength: 1,
+      items: {
+        type: 'object',
+        required: ['version', 'releaseDate', 'zipUrl', 'requirements'],
+        properties: {
+          version: { type: 'string', pattern: /^\d+\.\d+\.\d+$/ },
+          releaseDate: { type: 'string' },
+          changes: { type: 'string', optional: true },
+          zipUrl: { type: 'string', pattern: /^https:\/\/.+/ },
+          requirements: { type: 'object' }
+        }
+      }
+    },
     author: {
       type: 'object',
       required: ['name', 'github'],
@@ -35,6 +50,7 @@ const SCHEMA = {
     },
     distribution: {
       type: 'object',
+      optional: true,
       required: ['type', 'url'],
       properties: {
         type: { type: 'string', enum: ['cdn', 'npm'] },
@@ -126,12 +142,33 @@ function validateManifest(manifestPath) {
 
   const errors = [];
 
+  // 检查必需字段
   for (const field of SCHEMA.required) {
     if (!(field in manifest)) {
       errors.push(`Missing required field: ${field}`);
     }
   }
 
+  // 验证 versions 数组
+  if (Array.isArray(manifest.versions)) {
+    if (manifest.versions.length === 0) {
+      errors.push('versions array cannot be empty');
+    }
+
+    manifest.versions.forEach((version, index) => {
+      if (!version.version) {
+        errors.push(`versions[${index}].version is required`);
+      }
+      if (!version.zipUrl) {
+        errors.push(`versions[${index}].zipUrl is required`);
+      }
+      if (!version.requirements) {
+        errors.push(`versions[${index}].requirements is required`);
+      }
+    });
+  }
+
+  // 验证其他字段
   for (const [field, fieldSchema] of Object.entries(SCHEMA.properties)) {
     if (field in manifest) {
       errors.push(...validateValue(manifest[field], fieldSchema, field));
