@@ -24,7 +24,7 @@
   "versions": [
     {
       "version": "1.0.2",
-      "releaseDate": "2025-11-09T10:25:23.024Z",
+      "releaseDate": "2025-11-09T10:29:05.221Z",
       "changes": "update",
       "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.2.zip",
       "requirements": {
