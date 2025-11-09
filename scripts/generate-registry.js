@@ -58,16 +58,30 @@ function generateRegistry() {
         const content = fs.readFileSync(manifestPath, 'utf-8');
         const manifest = JSON.parse(content);
 
-        // 构建版本信息
-        const versionInfo = {
-          version: manifest.version,
-          releaseDate: new Date().toISOString(),
-          changes: manifest.description || 'No release notes',
-          zipUrl: manifest.distribution?.url || '',
-          requirements: manifest.requirements || {
-            'ecs-version': '>=1.0.0'
-          }
-        };
+        let versions = [];
+        let latestVersion = '';
+
+        // 支持新旧两种 manifest 结构
+        if (Array.isArray(manifest.versions) && manifest.versions.length > 0) {
+          // 新结构：使用 versions 数组
+          versions = manifest.versions;
+          latestVersion = manifest.latestVersion || manifest.versions[0].version;
+        } else if (manifest.version) {
+          // 旧结构：单个版本
+          const versionInfo = {
+            version: manifest.version,
+            releaseDate: new Date().toISOString(),
+            changes: manifest.description || 'No release notes',
+            zipUrl: manifest.distribution?.url || '',
+            requirements: manifest.requirements || {
+              'ecs-version': '>=1.0.0'
+            }
+          };
+          versions = [versionInfo];
+          latestVersion = manifest.version;
+        } else {
+          throw new Error('No version information found in manifest');
+        }
 
         // 添加插件信息到 registry
         const pluginInfo = {
@@ -82,16 +96,16 @@ function generateRegistry() {
           license: manifest.license,
           homepage: manifest.homepage,
           screenshots: manifest.screenshots || [],
-          latestVersion: manifest.version,
-          versions: [versionInfo],
+          latestVersion: latestVersion,
+          versions: versions,
           verified: category === 'official',
           category_type: category
         };
 
         registry.plugins.push(pluginInfo);
-        console.log(`  ✓ Added: ${manifest.name} v${manifest.version}`);
+        console.log(`  ✓ Added: ${manifest.name} v${latestVersion} (${versions.length} version${versions.length > 1 ? 's' : ''})`);
       } catch (error) {
-        console.error(`  ✗ Failed to process ${pluginId}: ${error.message}`);
+        console.error(`  ✗ Failed to process ${manifestPath}: ${error.message}`);
       }
     }
   }
