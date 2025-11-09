@@ -20,8 +20,18 @@
   "icon": "Package",
   "homepage": "https://github.com/esengine/ecs-framework",
   "screenshots": [],
-  "latestVersion": "1.0.2",
+  "latestVersion": "1.0.3",
   "versions": [
+    {
+      "version": "1.0.3",
+      "releaseDate": "2025-11-09T11:38:56.780Z",
+      "changes": "update",
+      "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.3.zip",
+      "requirements": {
+        "ecs-version": ">=1.0.0",
+        "editor-version": ">=1.0.0"
+      }
+    },
     {
       "version": "1.0.2",
       "releaseDate": "2025-11-09T10:29:05.221Z",
