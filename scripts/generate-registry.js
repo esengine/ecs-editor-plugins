@@ -58,7 +58,6 @@ function generateRegistry() {
         const content = fs.readFileSync(manifestPath, 'utf-8');
         const manifest = JSON.parse(content);
 
-        // 验证新结构
         if (!manifest.latestVersion) {
           throw new Error('Missing required field: latestVersion');
         }
@@ -68,8 +67,6 @@ function generateRegistry() {
 
         const versions = manifest.versions;
         const latestVersion = manifest.latestVersion;
-
-        // 添加插件信息到 registry
         const pluginInfo = {
           id: manifest.id,
           name: manifest.name,

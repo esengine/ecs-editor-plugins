@@ -132,10 +132,17 @@ async function checkManifestSecurity(manifestPath) {
     }
   }
 
-  await checkDistributionUrl(manifest.distribution.url, isNewPlugin);
-
-  if (manifest.distribution.css) {
-    await checkDistributionUrl(manifest.distribution.css, isNewPlugin);
+  if (Array.isArray(manifest.versions)) {
+    for (const version of manifest.versions) {
+      if (version.zipUrl) {
+        await checkDistributionUrl(version.zipUrl, isNewPlugin);
+      }
+    }
+  } else if (manifest.distribution?.url) {
+    await checkDistributionUrl(manifest.distribution.url, isNewPlugin);
+    if (manifest.distribution.css) {
+      await checkDistributionUrl(manifest.distribution.css, isNewPlugin);
+    }
   }
 
   await scanRepositoryCode(manifest.repository.url);

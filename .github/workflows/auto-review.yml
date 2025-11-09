@@ -124,7 +124,6 @@ jobs:
           ISSUES=()
 
           for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            # 检查必填字段完整性（新结构）
             REQUIRED_FIELDS="id name author description category repository license latestVersion versions"
             for field in $REQUIRED_FIELDS; do
               VALUE=$(node -e "console.log(require('./$file').$field || '')")

@@ -142,14 +142,12 @@ function validateManifest(manifestPath) {
 
   const errors = [];
 
-  // 检查必需字段
   for (const field of SCHEMA.required) {
     if (!(field in manifest)) {
       errors.push(`Missing required field: ${field}`);
     }
   }
 
-  // 验证 versions 数组
   if (Array.isArray(manifest.versions)) {
     if (manifest.versions.length === 0) {
       errors.push('versions array cannot be empty');
@@ -168,7 +166,6 @@ function validateManifest(manifestPath) {
     });
   }
 
-  // 验证其他字段
   for (const [field, fieldSchema] of Object.entries(SCHEMA.properties)) {
     if (field in manifest) {
       errors.push(...validateValue(manifest[field], fieldSchema, field));
