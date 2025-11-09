@@ -167,7 +167,10 @@ jobs:
           done
 
           echo "score=$QUALITY_SCORE" >> $GITHUB_OUTPUT
-          echo "issues=${ISSUES[@]}" >> $GITHUB_OUTPUT
+          # 使用特殊分隔符 ||| 连接 issues
+          IFS='|||'
+          echo "issues=${ISSUES[*]}" >> $GITHUB_OUTPUT
+          unset IFS
 
       - name: Add quality labels
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -274,9 +277,11 @@ jobs:
               recommendation = 'This looks good, but consider improving the areas mentioned below.';
             }
 
-            const issues = '${{ steps.quality.outputs.issues }}'.split(' ').filter(i => i);
+            // 使用特殊分隔符 ||| 分割 issues
+            const issuesStr = '${{ steps.quality.outputs.issues }}';
+            const issues = issuesStr ? issuesStr.split('|||').filter(i => i.trim()) : [];
             const issuesList = issues.length > 0
-              ? '\n\n**Quality Issues:**\n' + issues.map(i => '- ' + i).join('\n')
+              ? '\n\n**Quality Issues:**\n' + issues.map(i => '- ' + i.trim()).join('\n')
               : '';
 
             const nextSteps = score >= 80
