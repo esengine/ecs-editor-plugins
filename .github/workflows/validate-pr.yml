@@ -57,6 +57,8 @@ jobs:
       - name: Check version immutability
         if: steps.changed-files.outputs.any_changed == 'true'
         run: |
+          git fetch origin main:main 2>/dev/null || true
+
           for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
             PLUGIN_DIR=$(dirname "$file")
 
@@ -68,7 +70,7 @@ jobs:
 
               let existingVersions = [];
               try {
-                const mainManifestContent = execSync(\`git show main:\\\"\${file}\\\"\`, { encoding: 'utf-8' });
+                const mainManifestContent = execSync(\`git show main:\${file}\`, { encoding: 'utf-8' });
                 const mainManifest = JSON.parse(mainManifestContent);
                 if (Array.isArray(mainManifest.versions)) {
                   existingVersions = mainManifest.versions.map(v => v.version);
@@ -84,8 +86,6 @@ jobs:
                 });
               }
             ")
-
-            git fetch origin main:main 2>/dev/null || true
 
             for VERSION in $NEW_VERSIONS; do
               ZIP_FILE="$PLUGIN_DIR/versions/$VERSION.zip"
