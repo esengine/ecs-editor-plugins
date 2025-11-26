@@ -1,0 +1,131 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2025-11-26T05:29:17.700Z",
+  "cdn": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages",
+  "plugins": [
+    {
+      "id": "esengine-behavior-tree-editor",
+      "name": "Behavior Tree Editor Plugin for ECS Framework",
+      "author": {
+        "name": "esengine",
+        "github": "esengine"
+      },
+      "description": "Behavior Tree Editor Plugin for ECS Framework",
+      "category": "Tool",
+      "tags": [],
+      "icon": "Package",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/esengine/ecs-framework"
+      },
+      "license": "MIT",
+      "homepage": "https://github.com/esengine/ecs-framework",
+      "screenshots": [],
+      "latestVersion": "1.0.9",
+      "versions": [
+        {
+          "version": "1.0.9",
+          "releaseDate": "2025-11-26T05:27:53.264Z",
+          "changes": "update",
+          "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.9.zip",
+          "requirements": {
+            "ecs-version": ">=1.0.0",
+            "editor-version": ">=1.0.0"
+          }
+        },
+        {
+          "version": "1.0.8",
+          "releaseDate": "2025-11-18T06:21:14.955Z",
+          "changes": "update",
+          "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.8.zip",
+          "requirements": {
+            "ecs-version": ">=1.0.0",
+            "editor-version": ">=1.0.0"
+          }
+        },
+        {
+          "version": "1.0.7",
+          "releaseDate": "2025-11-17T03:18:19.912Z",
+          "changes": "update",
+          "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.7.zip",
+          "requirements": {
+            "ecs-version": ">=1.0.0",
+            "editor-version": ">=1.0.0"
+          }
+        },
+        {
+          "version": "1.0.6",
+          "releaseDate": "2025-11-12T13:11:37.800Z",
+          "changes": "update",
+          "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.6.zip",
+          "requirements": {
+            "ecs-version": ">=1.0.0",
+            "editor-version": ">=1.0.0"
+          }
+        },
+        {
+          "version": "1.0.5",
+          "releaseDate": "2025-11-12T10:33:33.506Z",
+          "changes": "update",
+          "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.5.zip",
+          "requirements": {
+            "ecs-version": ">=1.0.0",
+            "editor-version": ">=1.0.0"
+          }
+        },
+        {
+          "version": "1.0.4",
+          "releaseDate": "2025-11-12T09:11:53.716Z",
+          "changes": "update",
+          "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.4.zip",
+          "requirements": {
+            "ecs-version": ">=1.0.0",
+            "editor-version": ">=1.0.0"
+          }
+        },
+        {
+          "version": "1.0.3",
+          "releaseDate": "2025-11-09T11:38:56.780Z",
+          "changes": "update",
+          "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.3.zip",
+          "requirements": {
+            "ecs-version": ">=1.0.0",
+            "editor-version": ">=1.0.0"
+          }
+        },
+        {
+          "version": "1.0.2",
+          "releaseDate": "2025-11-09T10:29:05.221Z",
+          "changes": "update",
+          "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.2.zip",
+          "requirements": {
+            "ecs-version": ">=1.0.0",
+            "editor-version": ">=1.0.0"
+          }
+        },
+        {
+          "version": "1.0.1",
+          "releaseDate": "2025-11-09T04:16:28.798Z",
+          "changes": "update",
+          "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.1.zip",
+          "requirements": {
+            "ecs-version": ">=1.0.0",
+            "editor-version": ">=1.0.0"
+          }
+        },
+        {
+          "version": "1.0.0",
+          "releaseDate": "2025-11-07T06:55:05.000Z",
+          "changes": "Initial release of Behavior Tree Editor Plugin for ECS Framework",
+          "zipUrl": "https://cdn.jsdelivr.net/gh/esengine/ecs-editor-plugins@gh-pages/plugins/official/esengine-behavior-tree-editor/versions/1.0.0.zip",
+          "requirements": {
+            "ecs-version": ">=1.0.0",
+            "editor-version": ">=1.0.0"
+          }
+        }
+      ],
+      "verified": true,
+      "category_type": "official"
+    }
+  ]
+}
